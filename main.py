@@ -1,3 +1,4 @@
+import os.path
 import string
 import pandas as pd
 import numpy as np
@@ -11,7 +12,8 @@ from model import *
 
 MANUAL_SEED = 1145141919810
 BATCH_SIZE = 5
-EPOCH = 200
+EPOCH = 500 # 200-500, 断点暂未实现
+WEIGHT_PATH = "./weights"
 
 SPECIAL_CHAR = {'ï': 'i'}
 
@@ -56,8 +58,6 @@ def load_file():
     dataset = []
     for row in df.itertuples():
         tmp = list(row)
-        if tmp[0] == 20:
-            print(tmp[1])
         try:
             dataset.append([word_one_hot(tmp[1]),
                             tris_to_label(*tmp[-7:])])
@@ -92,6 +92,7 @@ if __name__ == '__main__':
     MSELoss下：
     -4 r2 0.9 50轮内, 但波动
     -6 r2 0.9 400轮以上, 但loss也不够低
+    -6 曲线下降更平滑
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -104,8 +105,9 @@ if __name__ == '__main__':
     # total_train = []
     # total_test_step = 0
     # total_test = []
-
     r2_cnt = 0
+
+    min_test_loss = None
 
     for i in range(EPOCH):
         print("Epoch {}".format(i + 1))
@@ -158,8 +160,16 @@ if __name__ == '__main__':
                         print("r2:{}".format(r2_score(tries_np[j], output_np[j])))
                 total_r2 += tmp_r2 / batch
                 cnt += 1
+
+                if min_test_loss == None or loss.item() < min_test_loss:
+                    min_test_loss = loss.item()
+                    stat = state = {'net': model.state_dict(), 'optimizer': optimizer.state_dict()}
+                    torch.save(state, os.path.join("./", "min.pth"))
+
             test_loss.append(total_test_loss / cnt)
             r2.append(total_r2 / cnt)
+
+
 
         print("Train Loss:{} Test Loss:{} R2:{}".format(train_loss[-1],
                                                         test_loss[-1],
@@ -174,18 +184,9 @@ if __name__ == '__main__':
             # plt.plot(x, np.array(r2), "r")
             # plt.show()
 
-    print("-------------")
-    oh = word_one_hot("kiosk")
-    la = tris_to_label(0, 24, 170, 401, 313, 130, 19)
-    model.eval()
-    with torch.no_grad():
-        output = model(oh.view(1, 5, 26))
-        loss = loss_fn(output, la.view(1, -1))
-        la = np.array(la).reshape(-1)
-        ou = np.array(output).reshape(-1)
-        print("Loss :{}".format(loss.item()))
-        print("r2:{}".format(r2_score(la, ou)))
-        x = np.arange(7)
-        plt.plot(x, la, "g")
-        plt.plot(x, ou, "y")
-        plt.show()
+    print("Min Test Loss: {}".format(min_test_loss))
+    file_name = "{}_{}.pth".format(len(os.listdir(WEIGHT_PATH)) + 1,
+                                   min_test_loss)
+    os.system("cp ./min.pth {}".format(os.path.join(WEIGHT_PATH, file_name)))
+
+
