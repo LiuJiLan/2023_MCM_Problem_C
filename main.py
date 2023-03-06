@@ -1,5 +1,4 @@
 import os.path
-import string
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,6 +6,7 @@ from sklearn.metrics import r2_score
 
 import torch
 from torch.utils.data import random_split, DataLoader
+# 要安装tensorboard
 
 from model import *
 
@@ -82,6 +82,7 @@ if __name__ == '__main__':
 
     # 引入模型
     model = Model()
+    # writer = SummaryWriter()
 
     loss_fn = nn.MSELoss()
     # loss_fn = nn.CrossEntropyLoss() # 不太行
@@ -127,6 +128,7 @@ if __name__ == '__main__':
             cnt += 1
             # total_train_step += 1
             # total_train.append(loss.item())
+            # writer.add_embedding(model.embedding.weight.data, global_step=i, tag='embedding')
         train_loss.append(total_train_loss / cnt)
 
         # 评估
@@ -163,7 +165,7 @@ if __name__ == '__main__':
 
                 if min_test_loss == None or loss.item() < min_test_loss:
                     min_test_loss = loss.item()
-                    stat = state = {'net': model.state_dict(), 'optimizer': optimizer.state_dict()}
+                    state = {'net': model.state_dict(), 'optimizer': optimizer.state_dict()}
                     torch.save(state, os.path.join("./", "min.pth"))
 
             test_loss.append(total_test_loss / cnt)
